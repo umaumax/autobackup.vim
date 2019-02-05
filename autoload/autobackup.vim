@@ -2,6 +2,7 @@ if exists('s:save_cpo')| finish| endif
 let s:save_cpo = &cpo| set cpo&vim
 scriptencoding utf-8
 "=============================================================================
+let s:FILE_FORMAT = '%s/%s/%04s.%s'
 let s:TMPEXT = '.0000.vim-autobackup'
 let s:NUMDIR = 'pathnums'
 function! s:make_bkdir() "{{{
@@ -25,13 +26,28 @@ endfunction
 "}}}
 function! s:get_nextnum(bkfilename, num) "{{{
   let i = a:num
-  while filereadable(printf('%s%s.%04s', s:bkdir, a:bkfilename, i))
+  while filereadable(printf(s:FILE_FORMAT, s:bkdir, a:bkfilename, i))
     let i += 1
   endwhile
   return i
 endfunction
 "}}}
-
+function! s:mkdir(bkfilepath) "{{{
+  let bkdirpath = fnamemodify(a:bkfilepath, ':h')
+  if filereadable(bkdirpath)
+    call delete(bkdirpath)
+  endif
+  if !isdirectory(bkdirpath)
+    call mkdir(bkdirpath, 'p')
+  endif
+endfunction
+"}}}
+function! s:gen_bkpath(bkdir, bkfilename, num) "{{{
+  " NOTE: # of file is prefix of filename due to keep file ext
+  let bkpath = printf(s:FILE_FORMAT, a:bkdir, fnamemodify(a:bkfilename, ':h'), a:num, fnamemodify(a:bkfilename, ':t'))
+  return bkpath
+endfunction
+"}}}
 function! autobackup#pre() "{{{
   let path = expand('<afile>:p')
   if path == '' || &backupdir == '' || g:autobackup_backup_dir == '' || g:autobackup_config_dir == ''
@@ -59,20 +75,24 @@ function! autobackup#post() "{{{
     return
   end
   let basepath = expand('<afile>:p')
-  let bkfilename = substitute(basepath, '[:/\\]', '%', 'g')
+  let bkfilename = substitute(basepath, '[:\\]', '%', 'g')
   let numpath = dir. '/'. s:NUMDIR. '/'. bkfilename
   let num = (filereadable(numpath) ? get(readfile(numpath), 0, 0) : 0) + 1
-  let bkpath = printf('%s%s.%04s', s:bkdir, bkfilename, num)
+  let bkpath = s:gen_bkpath(s:bkdir, bkfilename, num)
+  call s:mkdir(bkpath)
   if filereadable(bkpath)
     let num = s:get_nextnum(bkfilename, num+1)
-    let bkpath = printf('%s%s.%04s', s:bkdir, bkfilename, num)
+    let bkpath = s:gen_bkpath(s:bkdir, bkfilename, num)
   end
+  " NOTE: move current dir based tmp file to tmp dir
   let tmppath = basepath. s:TMPEXT
   if filereadable(tmppath)
     call rename(tmppath, bkpath)
+    call s:mkdir(numpath)
     call writefile([num], numpath)
+    " NOTE: save # of file as cache
     if g:autobackup_backup_limit && num > g:autobackup_backup_limit
-      call delete(printf('%s%s.%04s', s:bkdir, bkfilename, num - g:autobackup_backup_limit))
+      call delete(s:gen_bkpath(s:bkdir, bkfilename, num - g:autobackup_backup_limit))
     end
   end
   unlet s:save_patchmode s:bkdir
