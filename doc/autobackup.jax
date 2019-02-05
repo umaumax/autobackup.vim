@@ -36,7 +36,7 @@ License : MIT license  {{{
 *autobackup* はファイルを保存する度に過去のファイルをナンバリングして指定した
 ディレクトリに自動保存するプラグインです。
 例えば、"/home/user/test.txt" というファイルを保存する度に指定したディレクトリ
-に "%home%user%test.txt.0001" "%home%user%test.txt.0002" という形でバックアッ
+に "./home/user/0001.test.txt" "./home/user/0002.test.txt" という形でバックアッ
 プが作成されます。
 
 |savevers.vim|をリスペクトして作成されましたが、オリジナルより軽量です。
